@@ -55,10 +55,13 @@ fn rotator2_movement(
     for mut transform in rotator2_positions.iter_mut() {
         let time_delta = time.seconds_since_startup();
         println!("time_delta is {}", time_delta);
-        transform.translation.x = ((5.0 * time_delta).sin() as f32 * 5.0) + (time_delta.sin() as f32 * 20.0);
+        transform.translation.x =
+            ((5.0 * time_delta).sin() as f32 * 5.0) + (time_delta.sin() as f32 * 20.0);
         transform.translation.y = (5.0 * time_delta).cos() as f32 * 5.0;
         transform.translation.z = time_delta.cos() as f32 * 20.0;
-        println!("transform.translation is {}", transform.translation);
+        let lookat = transform.translation;
+        transform.look_at(lookat, Vec3::new(0.0, 1.0, 0.0));
+        println!("transform is {:?}", transform);
     }
 }
 
@@ -81,9 +84,11 @@ struct Rotator;
 fn rotator_movement(time: Res<Time>, mut rotator_positions: Query<&mut Transform, With<Rotator>>) {
     let angle = std::f32::consts::PI / 4.0;
     for mut transform in rotator_positions.iter_mut() {
-        transform.translation.x = transform.translation.x * (time.delta_seconds() * angle).cos() as f32
+        transform.translation.x = transform.translation.x
+            * (time.delta_seconds() * angle).cos() as f32
             - transform.translation.y * (time.delta_seconds() * angle).sin() as f32;
-        transform.translation.y = transform.translation.y * (time.delta_seconds() * angle).cos() as f32
+        transform.translation.y = transform.translation.y
+            * (time.delta_seconds() * angle).cos() as f32
             + transform.translation.x * (time.delta_seconds() * angle).sin() as f32;
     }
 }
