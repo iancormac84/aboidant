@@ -11,4 +11,4 @@ bevy = "0.4.0"
 bevy_flycam = { git = "https://github.com/sburris0/bevy_flycam.git", branch = "main" }
 
 [patch.crates-io]
-bevy = { path = "https://github.com/bevyengine/bevy.git" }
+bevy = { git = "https://github.com/bevyengine/bevy.git" }
