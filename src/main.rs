@@ -86,7 +86,6 @@ fn setup(
                     (i as f32).to_radians().sin() * 15.0,
                 ));
                 trans.rotate(Quat::from_rotation_ypr(0.0, 0.0, (i as f32).to_radians()));
-                println!("trans.rotation is {}", trans.rotation);
                 trans
             },
             ..Default::default()
@@ -104,7 +103,6 @@ fn setup(
                     -(i as f32) / 15.0,
                 ));
                 trans.rotate(Quat::from_rotation_ypr(0.0, 0.0, (i as f32).to_radians()));
-                println!("trans.rotation is {}", trans.rotation);
                 trans
             },
             ..Default::default()
