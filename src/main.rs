@@ -162,8 +162,8 @@ fn rotator_movement(time: Res<Time>, mut rotator_positions: Query<&mut Transform
 #[bevy_main]
 fn main() {
     App::build()
-        .add_resource(ClearColor(Color::MIDNIGHT_BLUE))
-        .add_resource(Msaa { samples: 4 })
+        .insert_resource(ClearColor(Color::MIDNIGHT_BLUE))
+        .insert_resource(Msaa { samples: 4 })
         .add_startup_system(setup.system())
         .add_system(snakelike_movement.system())
         .add_plugins(DefaultPlugins)
