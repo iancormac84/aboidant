@@ -8,7 +8,7 @@ edition = "2018"
 
 [dependencies]
 bevy = "0.4.0"
-bevy_flycam = { path = "C:/Code/bevy_flycam" }
+bevy_flycam = { git = "https://github.com/iancormac84/bevy_flycam.git", branch = "update" }
 
 [patch.crates-io]
 bevy = { git = "https://github.com/bevyengine/bevy.git" }
