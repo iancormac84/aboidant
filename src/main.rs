@@ -54,14 +54,13 @@ fn rotator2_movement(
 ) {
     for mut transform in rotator2_positions.iter_mut() {
         let time_delta = time.seconds_since_startup();
-        println!("time_delta is {}", time_delta);
         transform.translation.x =
             ((5.0 * time_delta).sin() as f32 * 5.0) + (time_delta.sin() as f32 * 20.0);
         transform.translation.y = (5.0 * time_delta).cos() as f32 * 5.0;
         transform.translation.z = time_delta.cos() as f32 * 20.0;
-        let lookat = transform.translation;
-        transform.look_at(lookat, Vec3::new(0.0, 1.0, 0.0));
-        println!("transform is {:?}", transform);
+        /*let lookat = transform.translation;
+        transform.look_at(lookat, Vec3::new(0.0, 1.0, 0.0));*/
+        println!("Rotator2 transform is {:?}", transform);
     }
 }
 
@@ -76,6 +75,7 @@ fn spinner_movement(time: Res<Time>, mut spinner_positions: Query<&mut Transform
             Vec3::new(0.33, 0.33, 0.33),
             angle * time.delta_seconds(),
         ));
+        println!("Spinner transform is {:?}", transform);
     }
 }
 
@@ -90,14 +90,15 @@ fn rotator_movement(time: Res<Time>, mut rotator_positions: Query<&mut Transform
         transform.translation.y = transform.translation.y
             * (time.delta_seconds() * angle).cos() as f32
             + transform.translation.x * (time.delta_seconds() * angle).sin() as f32;
+            println!("Rotator transform is {:?}", transform);
     }
 }
 
 #[bevy_main]
 fn main() {
     App::build()
-        .add_resource(ClearColor(Color::MIDNIGHT_BLUE))
-        .add_resource(Msaa { samples: 4 })
+        .insert_resource(ClearColor(Color::MIDNIGHT_BLUE))
+        .insert_resource(Msaa { samples: 4 })
         .add_startup_system(setup.system())
         .add_system(rotator_movement.system())
         .add_system(rotator2_movement.system())
