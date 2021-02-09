@@ -17,8 +17,6 @@ fn animate_ripplers(time: Res<Time>, mut query: Query<(&mut Transform, &mut Ripp
 
         transform.translation.y = rippler.wave_height
             * (rippler.wave_movement + rippler.wave_tiling * (rippler.x + rippler.y)).sin();
-        let newz = (rippler.wave_movement + (transform.translation.z / 20.0)) * time.delta_seconds() % std::f32::consts::PI;
-        transform.rotate(Quat::from_rotation_ypr(0.0, 0.0, newz));
     }
 }
 
