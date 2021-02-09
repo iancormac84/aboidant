@@ -11,14 +11,22 @@ struct Ripple {
 }
 
 fn animate_ripplers(time: Res<Time>, mut query: Query<(&mut Transform, &mut Ripple)>) {
+    let angle = std::f32::consts::PI / 2.0;
+    let time_delta = time.delta_seconds();
     for (mut transform, mut rippler) in query.iter_mut() {
-        rippler.wave_movement = (rippler.wave_movement + (rippler.wave_speed * time.delta_seconds()))
+        rippler.wave_movement = (rippler.wave_movement
+            + (rippler.wave_speed * time_delta))
             % (2.0 * std::f32::consts::PI);
 
+        transform.translation.x = transform.translation.x * (time_delta * angle).cos() as f32
+            - transform.translation.y * (time_delta * angle).sin() as f32;
         transform.translation.y = rippler.wave_height
             * (rippler.wave_movement + rippler.wave_tiling * (rippler.x + rippler.y)).sin();
-        let newz = (rippler.wave_movement + (transform.translation.z / 20.0)) * time.delta_seconds() % std::f32::consts::PI;
-        transform.rotate(Quat::from_rotation_ypr(0.0, 0.0, newz));
+        transform.translation.z -= 0.01;
+        transform.rotate(Quat::from_rotation_ypr(0.0, 0.0, 0.5f32.to_radians()));
+        /*let new_yaw = transform.translation.y / 300.0;
+        let newz = (rippler.wave_movement + (transform.translation.z / 19.0)) * time.delta_seconds() % std::f32::consts::PI;
+        transform.rotate(Quat::from_rotation_ypr(0.0, 0.0, newz));*/
     }
 }
 
@@ -36,7 +44,15 @@ fn setup(
             for h in 0..20 {
                 parent
                     .spawn(PbrBundle {
-                        transform: Transform::from_xyz(0.0, 0.0, h as f32),
+                        transform: {
+                            let mut trans = Transform::from_xyz(0.0, 0.0, h as f32);
+                            trans.rotate(Quat::from_rotation_ypr(
+                                0.0,
+                                0.0,
+                                (h as f32 * 360.0 / 20.0).to_radians(),
+                            ));
+                            trans
+                        },
                         mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
                         material: materials.add(Color::hex("7ed957").unwrap().into()),
                         ..Default::default()
