@@ -18,8 +18,9 @@ fn animate_ripplers(time: Res<Time>, mut query: Query<(&mut Transform, &mut Ripp
             + (rippler.wave_speed * time_delta))
             % (2.0 * std::f32::consts::PI);
 
-        transform.translation.x = transform.translation.x * (time_delta * angle).cos() as f32
-            - transform.translation.y * (time_delta * angle).sin() as f32;
+        //I put '-' in front of the (time_delta * angle) cos and sin calculations and got a blur effect
+        transform.translation.x = transform.translation.x * -(time_delta * angle).cos() as f32
+            - transform.translation.y * -(time_delta * angle).sin() as f32;
         transform.translation.y = rippler.wave_height
             * (rippler.wave_movement + rippler.wave_tiling * (rippler.x + rippler.y)).sin();
         transform.translation.z -= 0.01;
