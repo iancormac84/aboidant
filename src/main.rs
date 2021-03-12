@@ -21,7 +21,7 @@ fn animate_ripplers(time: Res<Time>, mut query: Query<(&mut Transform, &mut Ripp
 }
 
 fn setup(
-    commands: &mut Commands,
+    mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
