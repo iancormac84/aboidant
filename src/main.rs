@@ -36,7 +36,12 @@ fn setup(
                     .spawn(PbrBundle {
                         transform: Transform::from_xyz(0.0, 0.0, h as f32),
                         mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
-                        material: materials.add(Color::hex("7ed957").unwrap().into()),
+                        material: materials.add(StandardMaterial {
+                            base_color: Color::FUCHSIA,
+                            metallic: 1.0,
+                            roughness: 0.0,
+                            ..Default::default()
+                        }),
                         ..Default::default()
                     })
                     .with(Ripple {
@@ -51,12 +56,10 @@ fn setup(
         });
 
     commands.spawn(LightBundle {
-        light: Light {
-            fov: 200.0,
-            depth: 1.0..1000.0,
-            ..Default::default()
-        },
-        transform: Transform::from_translation(Vec3::new(0.0, 10.0, 0.0)),
+        transform: Transform::from_translation(Vec3::new(0.0, 0.0, 20.0)),
+        ..Default::default()
+    }).spawn(LightBundle {
+        transform: Transform::from_translation(Vec3::new(0.0, 10.0, 20.0)),
         ..Default::default()
     });
 }
@@ -64,7 +67,7 @@ fn setup(
 #[bevy_main]
 fn main() {
     App::build()
-        .insert_resource(ClearColor(Color::MIDNIGHT_BLUE))
+        .insert_resource(ClearColor(Color::YELLOW_GREEN))
         .insert_resource(Msaa { samples: 4 })
         .add_startup_system(setup.system())
         .add_system(animate_ripplers.system())
