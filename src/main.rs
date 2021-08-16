@@ -12,7 +12,8 @@ struct Ripple {
 
 fn animate_ripplers(time: Res<Time>, mut query: Query<(&mut Transform, &mut Ripple)>) {
     for (mut transform, mut rippler) in query.iter_mut() {
-        rippler.wave_movement = (rippler.wave_movement + (rippler.wave_speed * time.delta_seconds()))
+        rippler.wave_movement = (rippler.wave_movement
+            + (rippler.wave_speed * time.delta_seconds()))
             % (2.0 * std::f32::consts::PI);
 
         transform.translation.y = rippler.wave_height
@@ -26,14 +27,14 @@ fn setup(
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     commands
-        .spawn(PbrBundle {
+        .spawn_bundle(PbrBundle {
             transform: Transform::from_xyz(0.0, 0.0, 0.0),
             ..Default::default()
         })
         .with_children(|parent| {
             for h in 0..20 {
                 parent
-                    .spawn(PbrBundle {
+                    .spawn_bundle(PbrBundle {
                         transform: Transform::from_xyz(0.0, 0.0, h as f32),
                         mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
                         material: materials.add(StandardMaterial {
@@ -44,7 +45,7 @@ fn setup(
                         }),
                         ..Default::default()
                     })
-                    .with(Ripple {
+                    .insert(Ripple {
                         wave_movement: 0.0,
                         wave_tiling: 10.0,
                         wave_height: 1.5,
@@ -55,10 +56,11 @@ fn setup(
             }
         });
 
-    commands.spawn(LightBundle {
+    commands.spawn_bundle(PointLightBundle {
         transform: Transform::from_translation(Vec3::new(0.0, 0.0, 20.0)),
         ..Default::default()
-    }).spawn(LightBundle {
+    });
+    commands.spawn_bundle(PointLightBundle {
         transform: Transform::from_translation(Vec3::new(0.0, 10.0, 20.0)),
         ..Default::default()
     });
@@ -66,11 +68,11 @@ fn setup(
 
 #[bevy_main]
 fn main() {
-    App::build()
+    App::new()
         .insert_resource(ClearColor(Color::YELLOW_GREEN))
         .insert_resource(Msaa { samples: 4 })
-        .add_startup_system(setup.system())
-        .add_system(animate_ripplers.system())
+        .add_startup_system(setup)
+        .add_system(animate_ripplers)
         .add_plugins(DefaultPlugins)
         .add_plugin(PlayerPlugin)
         .run();
