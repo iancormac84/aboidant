@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use bevy_flycam::PlayerPlugin;
 
+#[derive(Component)]
 struct Ripple {
     wave_movement: f32,
     wave_tiling: f32,
