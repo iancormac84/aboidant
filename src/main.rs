@@ -58,6 +58,116 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
+    for i in (0..=345usize).step_by(30) {
+        commands.spawn_bundle(PbrBundle {
+            mesh: meshes.add(Mesh::from(shape::Cube { size: 1.5 })),
+            material: materials.add(Color::hex("041c56").unwrap().into()),
+            transform: {
+                let mut trans = Transform::from_translation(Vec3::new(
+                    (i as f32).to_radians().cos() * 5.0,
+                    (i as f32).to_radians().sin() * 5.0,
+                    -5.0,
+                ));
+                trans.rotate(Quat::from_euler(EulerRot::YXZ, 0.0, 0.0, (i as f32).to_radians()));
+                trans
+            },
+            ..Default::default()
+        });
+    }
+
+    for i in (0..=345usize).step_by(30) {
+        commands.spawn_bundle(PbrBundle {
+            mesh: meshes.add(Mesh::from(shape::Cube { size: 1.5 })),
+            material: materials.add(Color::hex("041c56").unwrap().into()),
+            transform: {
+                let mut trans = Transform::from_translation(Vec3::new(
+                    (i as f32).to_radians().cos() * 5.0,
+                    (i as f32).to_radians().sin() * 5.0,
+                    (i as f32).to_radians().cos() * 5.0 - 20.0,
+                ));
+                trans.rotate(Quat::from_euler(EulerRot::YXZ, 0.0, 0.0, (i as f32).to_radians()));
+                trans
+            },
+            ..Default::default()
+        });
+    }
+
+    for i in (0..=345usize).step_by(30) {
+        commands.spawn_bundle(PbrBundle {
+            mesh: meshes.add(Mesh::from(shape::Cube { size: 1.5 })),
+            material: materials.add(Color::hex("041c56").unwrap().into()),
+            transform: {
+                let mut trans = Transform::from_translation(Vec3::new(
+                    (i as f32).to_radians().cos() * 5.0,
+                    i as f32 / 15.0,
+                    (i as f32).to_radians().sin() * 5.0,
+                ));
+                trans.rotate(Quat::from_euler(EulerRot::YXZ, 0.0, 0.0, (i as f32).to_radians()));
+                trans
+            },
+            ..Default::default()
+        });
+    }
+
+    for i in (0..=345usize).step_by(30) {
+        commands.spawn_bundle(PbrBundle {
+            mesh: meshes.add(Mesh::from(shape::Cube { size: 1.5 })),
+            material: materials.add(Color::hex("041c56").unwrap().into()),
+            transform: Transform::from_translation(Vec3::new(
+                    (i as f32).to_radians().cos() * 10.0,
+                    i as f32 / 15.0,
+                    (i as f32).to_radians().sin() * 10.0,
+                )),
+            ..Default::default()
+        });
+    }
+
+    for i in (0..=359usize).step_by(2) {
+        commands.spawn_bundle(PbrBundle {
+            mesh: meshes.add(Mesh::from(shape::Cube { size: 0.25 })),
+            material: materials.add(Color::hex("041c56").unwrap().into()),
+            transform: {
+                let mut trans = Transform::from_translation(Vec3::new(
+                    (i as f32).to_radians().cos() * 15.0,
+                    i as f32 / 7.5,
+                    (i as f32).to_radians().sin() * 15.0,
+                ));
+                trans.rotate(Quat::from_euler(
+                    EulerRot::YXZ,
+                    0.0,
+                    0.0,
+                    (i as f32).to_radians(),
+                ));
+                trans
+            },
+            ..Default::default()
+        });
+    }
+
+    for i in (0..=345usize).step_by(30) {
+        commands
+            .spawn_bundle(PbrBundle {
+                mesh: meshes.add(Mesh::from(shape::Cube { size: 1.5 })),
+                material: materials.add(Color::hex("041c56").unwrap().into()),
+                transform: {
+                    let mut trans = Transform::from_translation(Vec3::new(
+                        (i as f32).to_radians().cos() * 5.0,
+                        (i as f32).to_radians().sin() * 5.0,
+                        -(i as f32) / 15.0,
+                    ));
+                    trans.rotate(Quat::from_euler(
+                        EulerRot::YXZ,
+                        0.0,
+                        0.0,
+                        (i as f32).to_radians(),
+                    ));
+                    trans
+                },
+                ..Default::default()
+            })
+            .insert(Snakelike);
+    }
+
     commands
         .spawn_bundle(PbrBundle {
             transform: Transform::from_xyz(0.0, 0.0, 0.0),
@@ -68,7 +178,7 @@ fn setup(
                 parent
                     .spawn_bundle(PbrBundle {
                         transform: Transform::from_xyz(0.0, 0.0, h as f32),
-                        mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
+                        mesh: meshes.add(Mesh::from(shape::Cube { size: 0.5 })),
                         material: materials.add(StandardMaterial {
                             base_color: Color::FUCHSIA,
                             metallic: 1.0,
@@ -99,6 +209,21 @@ fn setup(
     });
 }
 
+#[derive(Component)]
+struct Snakelike;
+
+fn snakelike_movement(time: Res<Time>, mut positions: Query<&mut Transform, With<Snakelike>>) {
+    for mut transform in positions.iter_mut() {
+        let angle = std::f32::consts::PI / 2.0;
+        let time_delta = time.delta_seconds();
+        transform.translation.x = transform.translation.x * (time_delta * angle).cos() as f32
+            - transform.translation.y * (time_delta * angle).sin() as f32;
+        transform.translation.y = transform.translation.y * (time_delta * angle).cos() as f32
+            + transform.translation.x * (time_delta * angle).sin() as f32;
+        transform.translation.z -= 0.01;
+    }
+}
+
 #[bevy_main]
 fn main() {
     App::new()
@@ -106,6 +231,7 @@ fn main() {
         .insert_resource(Msaa { samples: 4 })
         .add_startup_system(setup)
         .add_system(animate_ripplers)
+        .add_system(snakelike_movement)
         .add_plugins(DefaultPlugins)
         .add_plugin(PlayerPlugin)
         .run();
