@@ -1,3 +1,4 @@
+use bevy::math::EulerRot;
 use bevy::prelude::*;
 use bevy_flycam::PlayerPlugin;
 
@@ -9,16 +10,46 @@ struct Ripple {
     wave_speed: f32,
     x: f32,
     y: f32,
+    movement_behavior: MovementBehavior,
+}
+
+pub enum MovementBehavior {
+    Undulating,
+    Spiralling,
 }
 
 fn animate_ripplers(time: Res<Time>, mut query: Query<(&mut Transform, &mut Ripple)>) {
+    let angle = std::f32::consts::PI / 2.0;
+    let time_delta = time.delta_seconds();
     for (mut transform, mut rippler) in query.iter_mut() {
-        rippler.wave_movement = (rippler.wave_movement
-            + (rippler.wave_speed * time.delta_seconds()))
+        rippler.wave_movement = (rippler.wave_movement + (rippler.wave_speed * time_delta))
             % (2.0 * std::f32::consts::PI);
 
         transform.translation.y = rippler.wave_height
             * (rippler.wave_movement + rippler.wave_tiling * (rippler.x + rippler.y)).sin();
+        match rippler.movement_behavior {
+            MovementBehavior::Spiralling => {
+                transform.translation.x = transform.translation.x
+                    * (time_delta * angle).cos() as f32
+                    - transform.translation.y * (time_delta * angle).sin() as f32;
+                transform.translation.z -= 0.01;
+                transform.rotate(Quat::from_euler(
+                    EulerRot::YXZ,
+                    0.0,
+                    0.0,
+                    0.5f32.to_radians(),
+                ));
+            }
+            _ => {
+                let pitch = transform.translation.y;
+                transform.rotate(Quat::from_euler(
+                    EulerRot::XYZ,
+                    (pitch % std::f32::consts::PI / 4.0).to_radians(),
+                    0.0,
+                    0.0,
+                ));
+            }
+        }
     }
 }
 
@@ -53,6 +84,7 @@ fn setup(
                         wave_speed: 2.0,
                         x: 0.0,
                         y: h as f32 / 19.0,
+                        movement_behavior: MovementBehavior::Undulating,
                     });
             }
         });
