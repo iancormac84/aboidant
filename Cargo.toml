@@ -2,10 +2,11 @@
 name = "aboidant"
 version = "0.1.0"
 authors = ["iancormac84 <wilnathan@gmail.com>"]
-edition = "2018"
+edition = "2021"
+resolver = "2"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bevy = { git = "https://github.com/bevyengine/bevy.git" }
-bevy_flycam = { git = "https://github.com/iancormac84/bevy_flycam.git", branch = "update" }
+bevy = "*"
+bevy_flycam = { git = "https://github.com/sburris0/bevy_flycam.git" }

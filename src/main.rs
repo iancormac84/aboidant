@@ -182,7 +182,6 @@ fn setup(
                         material: materials.add(StandardMaterial {
                             base_color: Color::FUCHSIA,
                             metallic: 1.0,
-                            roughness: 0.0,
                             ..Default::default()
                         }),
                         ..Default::default()
