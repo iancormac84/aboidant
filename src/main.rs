@@ -1,6 +1,10 @@
 use bevy::math::EulerRot;
 use bevy::prelude::*;
 use bevy_flycam::PlayerPlugin;
+use bevy_tweening::{
+    lens::StandardMaterialBaseColorLens, AssetAnimator, EaseFunction, Tween, TweeningPlugin,
+    TweeningType,
+};
 
 #[derive(Component)]
 struct Ripple {
@@ -58,24 +62,47 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    for i in (0..=345usize).step_by(30) {
-        commands.spawn_bundle(PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Cube { size: 1.5 })),
-            material: materials.add(Color::hex("041c56").unwrap().into()),
-            transform: {
-                let mut trans = Transform::from_translation(Vec3::new(
-                    (i as f32).to_radians().cos() * 5.0,
-                    (i as f32).to_radians().sin() * 5.0,
-                    -5.0,
-                ));
-                trans.rotate(Quat::from_euler(EulerRot::YXZ, 0.0, 0.0, (i as f32).to_radians()));
-                trans
-            },
-            ..Default::default()
-        });
-    }
+    // Create a unique material per entity, so that it can be animated
+    // without affecting the other entities. Note that we could share
+    // that material among multiple entities, and animating the material
+    // asset would change the color of all entities using that material.
+    let unique_material = materials.add(Color::BLACK.into());
 
     for i in (0..=345usize).step_by(30) {
+        let tween = Tween::new(
+            EaseFunction::SineInOut,
+            TweeningType::PingPong,
+            std::time::Duration::from_secs(1),
+            StandardMaterialBaseColorLens {
+                start: Color::RED,
+                end: Color::VIOLET,
+            },
+        );
+
+        commands
+            .spawn_bundle(PbrBundle {
+                mesh: meshes.add(Mesh::from(shape::Cube { size: 1.5 })),
+                material: unique_material.clone(),
+                transform: {
+                    let mut trans = Transform::from_translation(Vec3::new(
+                        (i as f32).to_radians().cos() * 5.0,
+                        (i as f32).to_radians().sin() * 5.0,
+                        -5.0,
+                    ));
+                    trans.rotate(Quat::from_euler(
+                        EulerRot::YXZ,
+                        0.0,
+                        0.0,
+                        (i as f32).to_radians(),
+                    ));
+                    trans
+                },
+                ..Default::default()
+            })
+            .insert(AssetAnimator::new(unique_material.clone(), tween));
+    }
+
+    /*for i in (0..=345usize).step_by(30) {
         commands.spawn_bundle(PbrBundle {
             mesh: meshes.add(Mesh::from(shape::Cube { size: 1.5 })),
             material: materials.add(Color::hex("041c56").unwrap().into()),
@@ -85,7 +112,12 @@ fn setup(
                     (i as f32).to_radians().sin() * 5.0,
                     (i as f32).to_radians().cos() * 5.0 - 20.0,
                 ));
-                trans.rotate(Quat::from_euler(EulerRot::YXZ, 0.0, 0.0, (i as f32).to_radians()));
+                trans.rotate(Quat::from_euler(
+                    EulerRot::YXZ,
+                    0.0,
+                    0.0,
+                    (i as f32).to_radians(),
+                ));
                 trans
             },
             ..Default::default()
@@ -102,7 +134,12 @@ fn setup(
                     i as f32 / 15.0,
                     (i as f32).to_radians().sin() * 5.0,
                 ));
-                trans.rotate(Quat::from_euler(EulerRot::YXZ, 0.0, 0.0, (i as f32).to_radians()));
+                trans.rotate(Quat::from_euler(
+                    EulerRot::YXZ,
+                    0.0,
+                    0.0,
+                    (i as f32).to_radians(),
+                ));
                 trans
             },
             ..Default::default()
@@ -114,10 +151,10 @@ fn setup(
             mesh: meshes.add(Mesh::from(shape::Cube { size: 1.5 })),
             material: materials.add(Color::hex("041c56").unwrap().into()),
             transform: Transform::from_translation(Vec3::new(
-                    (i as f32).to_radians().cos() * 10.0,
-                    i as f32 / 15.0,
-                    (i as f32).to_radians().sin() * 10.0,
-                )),
+                (i as f32).to_radians().cos() * 10.0,
+                i as f32 / 15.0,
+                (i as f32).to_radians().sin() * 10.0,
+            )),
             ..Default::default()
         });
     }
@@ -196,7 +233,7 @@ fn setup(
                         movement_behavior: MovementBehavior::Undulating,
                     });
             }
-        });
+        });*/
 
     commands.spawn_bundle(PointLightBundle {
         transform: Transform::from_translation(Vec3::new(0.0, 0.0, 20.0)),
@@ -228,10 +265,11 @@ fn main() {
     App::new()
         .insert_resource(ClearColor(Color::YELLOW_GREEN))
         .insert_resource(Msaa { samples: 4 })
+        .add_plugins(DefaultPlugins)
+        .add_plugin(PlayerPlugin)
+        .add_plugin(TweeningPlugin)
         .add_startup_system(setup)
         .add_system(animate_ripplers)
         .add_system(snakelike_movement)
-        .add_plugins(DefaultPlugins)
-        .add_plugin(PlayerPlugin)
         .run();
 }

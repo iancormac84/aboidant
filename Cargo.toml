@@ -10,3 +10,4 @@ resolver = "2"
 [dependencies]
 bevy = "*"
 bevy_flycam = { git = "https://github.com/sburris0/bevy_flycam.git" }
+bevy_tweening = { path = "C:/code/bevy_tweening" }
