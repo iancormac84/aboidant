@@ -2,8 +2,8 @@ use bevy::math::EulerRot;
 use bevy::prelude::*;
 use bevy_flycam::PlayerPlugin;
 use bevy_tweening::{
-    lens::StandardMaterialBaseColorLens, AssetAnimator, EaseFunction, Tween, TweeningPlugin,
-    TweeningType,
+    lens::{StandardMaterialBaseColorLens, StandardMaterialPerceptualRoughnessLens},
+    AssetAnimator, EaseMethod, Tween, TweeningPlugin, TweeningType,
 };
 
 #[derive(Component)]
@@ -62,6 +62,13 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
+    commands.spawn_bundle(PbrBundle {
+        transform: Transform::from_translation(Vec3::new(0.0, -8.0, 0.0)),
+        mesh: meshes.add(Mesh::from(shape::Plane { size: 60.0 })),
+        material: materials.add(Color::hex("7ed957").unwrap().into()),
+        ..Default::default()
+    });
+
     // Create a unique material per entity, so that it can be animated
     // without affecting the other entities. Note that we could share
     // that material among multiple entities, and animating the material
@@ -70,12 +77,12 @@ fn setup(
 
     for i in (0..=345usize).step_by(30) {
         let tween = Tween::new(
-            EaseFunction::SineInOut,
+            EaseMethod::Linear,
             TweeningType::PingPong,
-            std::time::Duration::from_secs(1),
+            std::time::Duration::from_secs(2),
             StandardMaterialBaseColorLens {
-                start: Color::RED,
-                end: Color::VIOLET,
+                start: Color::YELLOW,
+                end: Color::GREEN,
             },
         );
 
@@ -102,7 +109,7 @@ fn setup(
             .insert(AssetAnimator::new(unique_material.clone(), tween));
     }
 
-    /*for i in (0..=345usize).step_by(30) {
+    for i in (0..=345usize).step_by(30) {
         commands.spawn_bundle(PbrBundle {
             mesh: meshes.add(Mesh::from(shape::Cube { size: 1.5 })),
             material: materials.add(Color::hex("041c56").unwrap().into()),
@@ -205,6 +212,8 @@ fn setup(
             .insert(Snakelike);
     }
 
+    let std_material = materials.add(StandardMaterial::from(Color::FUCHSIA));
+
     commands
         .spawn_bundle(PbrBundle {
             transform: Transform::from_xyz(0.0, 0.0, 0.0),
@@ -216,11 +225,7 @@ fn setup(
                     .spawn_bundle(PbrBundle {
                         transform: Transform::from_xyz(0.0, 0.0, h as f32),
                         mesh: meshes.add(Mesh::from(shape::Cube { size: 0.5 })),
-                        material: materials.add(StandardMaterial {
-                            base_color: Color::FUCHSIA,
-                            metallic: 1.0,
-                            ..Default::default()
-                        }),
+                        material: std_material.clone(),
                         ..Default::default()
                     })
                     .insert(Ripple {
@@ -231,18 +236,61 @@ fn setup(
                         x: 0.0,
                         y: h as f32 / 19.0,
                         movement_behavior: MovementBehavior::Undulating,
-                    });
+                    })
+                    .insert(AssetAnimator::new(
+                        std_material.clone(),
+                        Tween::new(
+                            EaseMethod::Linear,
+                            TweeningType::PingPong,
+                            std::time::Duration::from_secs(3),
+                            StandardMaterialPerceptualRoughnessLens {
+                                start: 0.089,
+                                end: 1.0,
+                            },
+                        ),
+                    ));
             }
-        });*/
+        })
+        .insert(AssetAnimator::new(
+            std_material.clone(),
+            Tween::new(
+                EaseMethod::Linear,
+                TweeningType::PingPong,
+                std::time::Duration::from_secs(3),
+                StandardMaterialPerceptualRoughnessLens {
+                    start: 0.089,
+                    end: 1.0,
+                },
+            ),
+        ));
 
-    commands.spawn_bundle(PointLightBundle {
-        transform: Transform::from_translation(Vec3::new(0.0, 0.0, 20.0)),
-        ..Default::default()
-    });
-    commands.spawn_bundle(PointLightBundle {
-        transform: Transform::from_translation(Vec3::new(0.0, 10.0, 20.0)),
-        ..Default::default()
-    });
+    commands
+        .spawn_bundle(PbrBundle {
+            transform: Transform::from_xyz(0.0, 3000.0, 0.0),
+            mesh: meshes.add(Mesh::from(shape::Icosphere {
+                radius: 2.0,
+                subdivisions: 5,
+            })),
+            material: materials.add(StandardMaterial {
+                base_color: Color::hex("007bb8").unwrap(),
+                emissive: Color::hex("007bb8").unwrap(),
+                unlit: false,
+                ..Default::default()
+            }),
+            ..Default::default()
+        })
+        .with_children(|parent| {
+            parent.spawn_bundle(DirectionalLightBundle {
+                transform: Transform::from_xyz(0.0, 3000.0, 0.0),
+                directional_light: DirectionalLight {
+                    color: Color::hex("007bb8").unwrap(),
+                    //illuminance: 100000,
+                    shadows_enabled: true,
+                    ..Default::default()
+                },
+                ..Default::default()
+            });
+        });
 }
 
 #[derive(Component)]
@@ -263,7 +311,7 @@ fn snakelike_movement(time: Res<Time>, mut positions: Query<&mut Transform, With
 #[bevy_main]
 fn main() {
     App::new()
-        .insert_resource(ClearColor(Color::YELLOW_GREEN))
+        .insert_resource(ClearColor(Color::AZURE))
         .insert_resource(Msaa { samples: 4 })
         .add_plugins(DefaultPlugins)
         .add_plugin(PlayerPlugin)
