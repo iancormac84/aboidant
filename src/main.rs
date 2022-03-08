@@ -1,9 +1,11 @@
+use std::time::Duration;
+
 use bevy::math::EulerRot;
 use bevy::prelude::*;
 use bevy_flycam::PlayerPlugin;
 use bevy_tweening::{
-    lens::{StandardMaterialBaseColorLens, StandardMaterialPerceptualRoughnessLens},
-    AssetAnimator, EaseMethod, Tween, TweeningPlugin, TweeningType,
+    lens::{DirectionalLightIlluminanceLens, StandardMaterialBaseColorLens, TransformScaleLens},
+    Animator, AssetAnimator, EaseMethod, Tween, TweeningPlugin, TweeningType,
 };
 
 #[derive(Component)]
@@ -69,6 +71,23 @@ fn setup(
         ..Default::default()
     });
 
+    commands
+        .spawn_bundle(PbrBundle {
+            transform: Transform::from_translation(Vec3::new(0.0, -8.0, 0.0)),
+            mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
+            material: materials.add(Color::PINK.into()),
+            ..Default::default()
+        })
+        .insert(Animator::new(Tween::new(
+            EaseMethod::Linear,
+            TweeningType::PingPong,
+            Duration::from_secs(10),
+            TransformScaleLens {
+                start: Vec3::splat(1.0),
+                end: Vec3::splat(15.0),
+            },
+        )));
+
     // Create a unique material per entity, so that it can be animated
     // without affecting the other entities. Note that we could share
     // that material among multiple entities, and animating the material
@@ -81,8 +100,8 @@ fn setup(
             TweeningType::PingPong,
             std::time::Duration::from_secs(2),
             StandardMaterialBaseColorLens {
-                start: Color::YELLOW,
-                end: Color::GREEN,
+                start: Color::RED,
+                end: Color::YELLOW,
             },
         );
 
@@ -236,37 +255,13 @@ fn setup(
                         x: 0.0,
                         y: h as f32 / 19.0,
                         movement_behavior: MovementBehavior::Undulating,
-                    })
-                    .insert(AssetAnimator::new(
-                        std_material.clone(),
-                        Tween::new(
-                            EaseMethod::Linear,
-                            TweeningType::PingPong,
-                            std::time::Duration::from_secs(3),
-                            StandardMaterialPerceptualRoughnessLens {
-                                start: 0.089,
-                                end: 1.0,
-                            },
-                        ),
-                    ));
+                    });
             }
-        })
-        .insert(AssetAnimator::new(
-            std_material.clone(),
-            Tween::new(
-                EaseMethod::Linear,
-                TweeningType::PingPong,
-                std::time::Duration::from_secs(3),
-                StandardMaterialPerceptualRoughnessLens {
-                    start: 0.089,
-                    end: 1.0,
-                },
-            ),
-        ));
+        });
 
     commands
         .spawn_bundle(PbrBundle {
-            transform: Transform::from_xyz(0.0, 3000.0, 0.0),
+            transform: Transform::from_xyz(0.0, 5000.0, 0.0),
             mesh: meshes.add(Mesh::from(shape::Icosphere {
                 radius: 2.0,
                 subdivisions: 5,
@@ -280,16 +275,25 @@ fn setup(
             ..Default::default()
         })
         .with_children(|parent| {
-            parent.spawn_bundle(DirectionalLightBundle {
-                transform: Transform::from_xyz(0.0, 3000.0, 0.0),
-                directional_light: DirectionalLight {
-                    color: Color::hex("007bb8").unwrap(),
-                    //illuminance: 100000,
-                    shadows_enabled: true,
+            parent
+                .spawn_bundle(DirectionalLightBundle {
+                    transform: Transform::from_xyz(0.0, 5000.0, 0.0),
+                    directional_light: DirectionalLight {
+                        color: Color::hex("007bb8").unwrap(),
+                        shadows_enabled: true,
+                        ..Default::default()
+                    },
                     ..Default::default()
-                },
-                ..Default::default()
-            });
+                })
+                .insert(Animator::new(Tween::new(
+                    EaseMethod::Linear,
+                    TweeningType::PingPong,
+                    std::time::Duration::from_secs(3),
+                    DirectionalLightIlluminanceLens {
+                        start: 0.0001,
+                        end: 100000.0,
+                    },
+                )));
         });
 }
 
