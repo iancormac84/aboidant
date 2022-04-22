@@ -10,4 +10,4 @@ resolver = "2"
 [dependencies]
 bevy = "*"
 bevy_flycam = { git = "https://github.com/sburris0/bevy_flycam.git" }
-bevy_tweening = { git = "https://github.com/iancormac84/bevy_tweening.git", branch = "new-lenses" }
+bevy_tweening = { git = "https://github.com/iancormac84/bevy_tweening.git", branch = "new-lenses", features = ["bevy_pbr"] }
