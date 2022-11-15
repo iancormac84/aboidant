@@ -5,7 +5,7 @@ use bevy::prelude::*;
 use bevy_flycam::PlayerPlugin;
 use bevy_tweening::{
     lens::{DirectionalLightIlluminanceLens, StandardMaterialBaseColorLens, TransformScaleLens},
-    Animator, AssetAnimator, EaseMethod, Tween, TweeningPlugin, TweeningType,
+    Animator, AssetAnimator, EaseMethod, RepeatCount, RepeatStrategy, Tween, TweeningPlugin,
 };
 
 #[derive(Component)]
@@ -64,29 +64,35 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    commands.spawn_bundle(PbrBundle {
+    commands.spawn(PbrBundle {
         transform: Transform::from_translation(Vec3::new(0.0, -8.0, 0.0)),
         mesh: meshes.add(Mesh::from(shape::Plane { size: 60.0 })),
         material: materials.add(Color::hex("0047ab").unwrap().into()),
         ..Default::default()
     });
 
-    commands
-        .spawn_bundle(PbrBundle {
+    commands.spawn((
+        PbrBundle {
             transform: Transform::from_translation(Vec3::new(0.0, -8.0, 0.0)),
             mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
             material: materials.add(Color::PINK.into()),
             ..Default::default()
-        })
-        .insert(Animator::new(Tween::new(
-            EaseMethod::Linear,
-            TweeningType::PingPong,
-            Duration::from_secs(10),
-            TransformScaleLens {
-                start: Vec3::splat(1.0),
-                end: Vec3::splat(15.0),
-            },
-        )));
+        },
+        Animator::new(
+            Tween::new(
+                EaseMethod::Linear,
+                Duration::from_secs(10),
+                TransformScaleLens {
+                    start: Vec3::splat(1.0),
+                    end: Vec3::splat(15.0),
+                },
+            )
+            // Repeat twice (one per way)
+            .with_repeat_count(RepeatCount::Finite(2))
+            // After each iteration, reverse direction (ping-pong)
+            .with_repeat_strategy(RepeatStrategy::MirroredRepeat),
+        ),
+    ));
 
     // Create a unique material per entity, so that it can be animated
     // without affecting the other entities. Note that we could share
@@ -97,16 +103,19 @@ fn setup(
     for i in (0..=345usize).step_by(30) {
         let tween = Tween::new(
             EaseMethod::Linear,
-            TweeningType::PingPong,
             std::time::Duration::from_secs(2),
             StandardMaterialBaseColorLens {
                 start: Color::RED,
                 end: Color::YELLOW,
             },
-        );
+        )
+        // Repeat twice (one per way)
+        .with_repeat_count(RepeatCount::Infinite)
+        // After each iteration, reverse direction (ping-pong)
+        .with_repeat_strategy(RepeatStrategy::MirroredRepeat);
 
-        commands
-            .spawn_bundle(PbrBundle {
+        commands.spawn((
+            PbrBundle {
                 mesh: meshes.add(Mesh::from(shape::Cube { size: 1.5 })),
                 material: unique_material.clone(),
                 transform: {
@@ -124,12 +133,13 @@ fn setup(
                     trans
                 },
                 ..Default::default()
-            })
-            .insert(AssetAnimator::new(unique_material.clone(), tween));
+            },
+            AssetAnimator::new(unique_material.clone(), tween),
+        ));
     }
 
     for i in (0..=345usize).step_by(30) {
-        commands.spawn_bundle(PbrBundle {
+        commands.spawn(PbrBundle {
             mesh: meshes.add(Mesh::from(shape::Cube { size: 1.5 })),
             material: materials.add(Color::hex("041c56").unwrap().into()),
             transform: {
@@ -151,7 +161,7 @@ fn setup(
     }
 
     for i in (0..=345usize).step_by(30) {
-        commands.spawn_bundle(PbrBundle {
+        commands.spawn(PbrBundle {
             mesh: meshes.add(Mesh::from(shape::Cube { size: 1.5 })),
             material: materials.add(Color::hex("041c56").unwrap().into()),
             transform: {
@@ -173,7 +183,7 @@ fn setup(
     }
 
     for i in (0..=345usize).step_by(30) {
-        commands.spawn_bundle(PbrBundle {
+        commands.spawn(PbrBundle {
             mesh: meshes.add(Mesh::from(shape::Cube { size: 1.5 })),
             material: materials.add(Color::hex("041c56").unwrap().into()),
             transform: Transform::from_translation(Vec3::new(
@@ -186,7 +196,7 @@ fn setup(
     }
 
     for i in (0..=359usize).step_by(2) {
-        commands.spawn_bundle(PbrBundle {
+        commands.spawn(PbrBundle {
             mesh: meshes.add(Mesh::from(shape::Cube { size: 0.25 })),
             material: materials.add(Color::hex("041c56").unwrap().into()),
             transform: {
@@ -208,8 +218,8 @@ fn setup(
     }
 
     for i in (0..=345usize).step_by(30) {
-        commands
-            .spawn_bundle(PbrBundle {
+        commands.spawn((
+            PbrBundle {
                 mesh: meshes.add(Mesh::from(shape::Cube { size: 1.5 })),
                 material: materials.add(Color::hex("041c56").unwrap().into()),
                 transform: {
@@ -227,21 +237,22 @@ fn setup(
                     trans
                 },
                 ..Default::default()
-            })
-            .insert(Snakelike);
+            },
+            Snakelike,
+        ));
     }
 
     let std_material = materials.add(StandardMaterial::from(Color::FUCHSIA));
 
     commands
-        .spawn_bundle(PbrBundle {
+        .spawn(PbrBundle {
             transform: Transform::from_xyz(0.0, 0.0, 0.0),
             ..Default::default()
         })
         .with_children(|parent| {
             for h in 0..20 {
                 parent
-                    .spawn_bundle(PbrBundle {
+                    .spawn(PbrBundle {
                         transform: Transform::from_xyz(0.0, 0.0, h as f32),
                         mesh: meshes.add(Mesh::from(shape::Cube { size: 0.5 })),
                         material: std_material.clone(),
@@ -259,8 +270,8 @@ fn setup(
             }
         });
 
-    commands
-        .spawn_bundle(DirectionalLightBundle {
+    commands.spawn((
+        DirectionalLightBundle {
             transform: Transform::from_xyz(0.0, 1000.0, 0.0),
             directional_light: DirectionalLight {
                 color: Color::hex("0047ab").unwrap(),
@@ -268,16 +279,22 @@ fn setup(
                 ..Default::default()
             },
             ..Default::default()
-        })
-        .insert(Animator::new(Tween::new(
-            EaseMethod::Linear,
-            TweeningType::PingPong,
-            std::time::Duration::from_secs(3),
-            DirectionalLightIlluminanceLens {
-                start: 0.0001,
-                end: 100000.0,
-            },
-        )));
+        },
+        Animator::new(
+            Tween::new(
+                EaseMethod::Linear,
+                std::time::Duration::from_secs(3),
+                DirectionalLightIlluminanceLens {
+                    start: 0.0001,
+                    end: 100000.0,
+                },
+            )
+            // Repeat twice (one per way)
+            .with_repeat_count(RepeatCount::Infinite)
+            // After each iteration, reverse direction (ping-pong)
+            .with_repeat_strategy(RepeatStrategy::MirroredRepeat),
+        ),
+    ));
 }
 
 #[derive(Component)]
