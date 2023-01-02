@@ -35,9 +35,8 @@ fn animate_ripplers(time: Res<Time>, mut query: Query<(&mut Transform, &mut Ripp
             * (rippler.wave_movement + rippler.wave_tiling * (rippler.x + rippler.y)).sin();
         match rippler.movement_behavior {
             MovementBehavior::Spiralling => {
-                transform.translation.x = transform.translation.x
-                    * (time_delta * angle).cos() as f32
-                    - transform.translation.y * (time_delta * angle).sin() as f32;
+                transform.translation.x = transform.translation.x * (time_delta * angle).cos()
+                    - transform.translation.y * (time_delta * angle).sin();
                 transform.translation.z -= 0.01;
                 transform.rotate(Quat::from_euler(
                     EulerRot::YXZ,
@@ -304,10 +303,10 @@ fn snakelike_movement(time: Res<Time>, mut positions: Query<&mut Transform, With
     for mut transform in positions.iter_mut() {
         let angle = std::f32::consts::PI / 2.0;
         let time_delta = time.delta_seconds();
-        transform.translation.x = transform.translation.x * (time_delta * angle).cos() as f32
-            - transform.translation.y * (time_delta * angle).sin() as f32;
-        transform.translation.y = transform.translation.y * (time_delta * angle).cos() as f32
-            + transform.translation.x * (time_delta * angle).sin() as f32;
+        transform.translation.x = transform.translation.x * (time_delta * angle).cos()
+            - transform.translation.y * (time_delta * angle).sin();
+        transform.translation.y = transform.translation.y * (time_delta * angle).cos()
+            + transform.translation.x * (time_delta * angle).sin();
         transform.translation.z -= 0.01;
     }
 }
