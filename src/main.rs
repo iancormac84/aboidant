@@ -1,12 +1,84 @@
 use std::time::Duration;
 
-use bevy::math::EulerRot;
-use bevy::prelude::*;
-use bevy_flycam::PlayerPlugin;
+use bevy::{math::EulerRot, prelude::*, reflect::TypePath, window::{CursorGrabMode, PrimaryWindow}};
 use bevy_tweening::{
     lens::{DirectionalLightIlluminanceLens, StandardMaterialBaseColorLens, TransformScaleLens},
     Animator, AssetAnimator, EaseMethod, RepeatCount, RepeatStrategy, Tween, TweeningPlugin,
 };
+use leafwing_input_manager::{
+    prelude::{ActionState, DualAxis, InputManagerPlugin, InputMap},
+    Actionlike, InputManagerBundle,
+};
+use smooth_bevy_cameras::{
+    controllers::fps::{ControlEvent, FpsCameraBundle, FpsCameraController, FpsCameraPlugin},
+    LookTransformPlugin,
+};
+
+#[derive(Component)]
+struct Player;
+
+fn player_move(
+    mut events: EventWriter<ControlEvent>,
+    action_states: Query<&ActionState<Action>>,
+    controllers: Query<&FpsCameraController>,
+) {
+    // Can only control one camera at a time.
+    let controller = if let Some(controller) = controllers.iter().find(|c| c.enabled) {
+        controller
+    } else {
+        return;
+    };
+    let FpsCameraController {
+        translate_sensitivity,
+        ..
+    } = *controller;
+
+    let action_state = action_states.single();
+
+    if action_state.pressed(Action::Forward) {
+        events.send(ControlEvent::TranslateEye(translate_sensitivity * Vec3::Z));
+    } else if action_state.pressed(Action::Left) {
+        events.send(ControlEvent::TranslateEye(translate_sensitivity * Vec3::X));
+    } else if action_state.pressed(Action::Backward) {
+        events.send(ControlEvent::TranslateEye(translate_sensitivity * -Vec3::Z));
+    } else if action_state.pressed(Action::Right) {
+        events.send(ControlEvent::TranslateEye(translate_sensitivity * -Vec3::X));
+    } else if action_state.pressed(Action::Down) {
+        events.send(ControlEvent::TranslateEye(translate_sensitivity * -Vec3::Y));
+    } else if action_state.pressed(Action::Up) {
+        events.send(ControlEvent::TranslateEye(translate_sensitivity * Vec3::Y));
+    }
+}
+
+fn player_look(
+    mut events: EventWriter<ControlEvent>,
+    action_states: Query<&ActionState<Action>>,
+    controllers: Query<&FpsCameraController>,
+) {
+    // Can only control one camera at a time.
+    let controller = if let Some(controller) = controllers.iter().find(|c| c.enabled) {
+        controller
+    } else {
+        return;
+    };
+    let FpsCameraController {
+        mouse_rotate_sensitivity,
+        ..
+    } = *controller;
+
+    let mut cursor_delta = Vec2::ZERO;
+
+    let action_state = action_states.single();
+
+    if action_state.pressed(Action::Look) {
+        cursor_delta += action_state
+            .axis_pair(Action::Look)
+            .map_or(Vec2::ZERO, |axis| Vec2::new(axis.x(), axis.y()));
+        events.send(ControlEvent::Rotate(
+            mouse_rotate_sensitivity * cursor_delta,
+        ));
+    }
+}
 
 #[derive(Component)]
 struct Ripple {
@@ -62,10 +134,39 @@ fn setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    mut primary_window: Query<&mut Window, With<PrimaryWindow>>,
 ) {
+    commands
+        .spawn(Camera3dBundle::default())
+        .insert(FpsCameraBundle::new(
+            FpsCameraController {
+                translate_sensitivity: 12.0,
+                ..Default::default()
+            },
+            Vec3::new(-2.0, 5.0, 5.0),
+            Vec3::new(0., 0., 0.),
+            Vec3::Y,
+        ))
+        .insert(InputManagerBundle {
+            action_state: ActionState::default(),
+            input_map: InputMap::default()
+                .insert(KeyCode::W, Action::Forward)
+                .insert(KeyCode::A, Action::Left)
+                .insert(KeyCode::S, Action::Backward)
+                .insert(KeyCode::D, Action::Right)
+                .insert(KeyCode::ShiftLeft, Action::Down)
+                .insert(KeyCode::Space, Action::Up)
+                .insert(DualAxis::mouse_motion(), Action::Look)
+                .build(),
+        })
+        .insert(Player);
+
     commands.spawn(PbrBundle {
         transform: Transform::from_translation(Vec3::new(0.0, -8.0, 0.0)),
-        mesh: meshes.add(Mesh::from(shape::Plane { size: 60.0 })),
+        mesh: meshes.add(Mesh::from(shape::Plane {
+            size: 60.0,
+            subdivisions: 1,
+        })),
         material: materials.add(Color::hex("0047ab").unwrap().into()),
         ..Default::default()
     });
@@ -294,6 +395,11 @@ fn setup(
             .with_repeat_strategy(RepeatStrategy::MirroredRepeat),
         ),
     ));
+
+    if let Ok(mut window) = primary_window.get_single_mut() {
+        window.cursor.grab_mode = CursorGrabMode::Confined;
+        window.cursor.visible = false;
+    }
 }
 
 #[derive(Component)]
@@ -311,16 +417,30 @@ fn snakelike_movement(time: Res<Time>, mut positions: Query<&mut Transform, With
     }
 }
 
+#[derive(Actionlike, PartialEq, Eq, Clone, Copy, Hash, Debug, TypePath)]
+enum Action {
+    Forward,
+    Left,
+    Backward,
+    Right,
+    Down,
+    Up,
+    Look,
+}
+
 #[bevy_main]
 fn main() {
     App::new()
         .insert_resource(ClearColor(Color::AZURE))
-        .insert_resource(Msaa { samples: 4 })
-        .add_plugins(DefaultPlugins)
-        .add_plugin(PlayerPlugin)
-        .add_plugin(TweeningPlugin)
-        .add_startup_system(setup)
-        .add_system(animate_ripplers)
-        .add_system(snakelike_movement)
+        .insert_resource(Msaa::default())
+        .add_plugins((
+            DefaultPlugins,
+            TweeningPlugin,
+            InputManagerPlugin::<Action>::default(),
+            LookTransformPlugin,
+            FpsCameraPlugin::new(true),
+        ))
+        .add_systems(Startup, setup)
+        .add_systems(Update, (player_move, player_look, animate_ripplers, snakelike_movement))
         .run();
 }
