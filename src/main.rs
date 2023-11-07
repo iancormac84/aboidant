@@ -234,7 +234,7 @@ fn setup(
                 },
                 ..Default::default()
             },
-            AssetAnimator::new(unique_material.clone(), tween),
+            AssetAnimator::new(tween),
         ));
     }
 
