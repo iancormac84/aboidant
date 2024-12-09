@@ -1,18 +1,57 @@
 use std::time::Duration;
 
-use bevy::{math::EulerRot, prelude::*, reflect::TypePath, window::{CursorGrabMode, PrimaryWindow}};
+use bevy::{
+    app::{App, Startup, Update},
+    asset::Assets,
+    color::{palettes::css, Color, Mix},
+    math::{EulerRot, Quat, Vec2, Vec3},
+    pbr::{DirectionalLight, MeshMaterial3d, StandardMaterial},
+    prelude::{
+        bevy_main, BuildChildren, Camera3d, ChildBuild, ClearColor, Commands, Component, Cuboid,
+        EaseFunction, EventWriter, KeyCode, Mesh, Mesh3d, Plane3d, Query, Res, ResMut, Transform,
+        With,
+    },
+    reflect::Reflect,
+    time::Time,
+    window::{CursorGrabMode, PrimaryWindow, Window},
+    DefaultPlugins,
+};
 use bevy_tweening::{
-    lens::{DirectionalLightIlluminanceLens, StandardMaterialBaseColorLens, TransformScaleLens},
-    Animator, AssetAnimator, EaseMethod, RepeatCount, RepeatStrategy, Tween, TweeningPlugin,
+    lens::TransformScaleLens,
+    Animator, AssetAnimator, EaseMethod, Lens, RepeatCount, RepeatStrategy, Targetable, Tween,
+    TweeningPlugin,
 };
 use leafwing_input_manager::{
-    prelude::{ActionState, DualAxis, InputManagerPlugin, InputMap},
+    prelude::{ActionState, InputManagerPlugin, InputMap, MouseMove},
     Actionlike, InputManagerBundle,
 };
 use smooth_bevy_cameras::{
     controllers::fps::{ControlEvent, FpsCameraBundle, FpsCameraController, FpsCameraPlugin},
     LookTransformPlugin,
 };
+
+struct StandardMaterialBaseColorLens {
+    start: Color,
+    end: Color,
+}
+
+impl Lens<StandardMaterial> for StandardMaterialBaseColorLens {
+    fn lerp(&mut self, target: &mut dyn Targetable<StandardMaterial>, ratio: f32) {
+        let value = self.start.mix(&self.end, ratio);
+        target.base_color = value;
+    }
+}
+
+struct DirectionalLightIlluminanceLens {
+    start: f32,
+    end: f32,
+}
+
+impl Lens<DirectionalLight> for DirectionalLightIlluminanceLens {
+    fn lerp(&mut self, target: &mut dyn Targetable<DirectionalLight>, ratio: f32) {
+        target.illuminance = self.start + (self.end - self.start) * ratio;
+    }
+}
 
 #[derive(Component)]
 struct Player;
@@ -35,17 +74,17 @@ fn player_move(
 
     let action_state = action_states.single();
 
-    if action_state.pressed(Action::Forward) {
+    if action_state.pressed(&Action::Forward) {
         events.send(ControlEvent::TranslateEye(translate_sensitivity * Vec3::Z));
-    } else if action_state.pressed(Action::Left) {
+    } else if action_state.pressed(&Action::Left) {
         events.send(ControlEvent::TranslateEye(translate_sensitivity * Vec3::X));
-    } else if action_state.pressed(Action::Backward) {
+    } else if action_state.pressed(&Action::Backward) {
         events.send(ControlEvent::TranslateEye(translate_sensitivity * -Vec3::Z));
-    } else if action_state.pressed(Action::Right) {
+    } else if action_state.pressed(&Action::Right) {
         events.send(ControlEvent::TranslateEye(translate_sensitivity * -Vec3::X));
-    } else if action_state.pressed(Action::Down) {
+    } else if action_state.pressed(&Action::Down) {
         events.send(ControlEvent::TranslateEye(translate_sensitivity * -Vec3::Y));
-    } else if action_state.pressed(Action::Up) {
+    } else if action_state.pressed(&Action::Up) {
         events.send(ControlEvent::TranslateEye(translate_sensitivity * Vec3::Y));
     }
 }
@@ -70,10 +109,9 @@ fn player_look(
 
     let action_state = action_states.single();
 
-    if action_state.pressed(Action::Look) {
+    if action_state.pressed(&Action::Look) {
         cursor_delta += action_state
-            .axis_pair(Action::Look)
-            .map_or(Vec2::ZERO, |axis| Vec2::new(axis.x(), axis.y()));
+            .axis_pair(&Action::Look);
         events.send(ControlEvent::Rotate(
             mouse_rotate_sensitivity * cursor_delta,
         ));
@@ -98,7 +136,7 @@ pub enum MovementBehavior {
 
 fn animate_ripplers(time: Res<Time>, mut query: Query<(&mut Transform, &mut Ripple)>) {
     let angle = std::f32::consts::PI / 2.0;
-    let time_delta = time.delta_seconds();
+    let time_delta = time.delta_secs();
     for (mut transform, mut rippler) in query.iter_mut() {
         rippler.wave_movement = (rippler.wave_movement + (rippler.wave_speed * time_delta))
             % (2.0 * std::f32::consts::PI);
@@ -136,8 +174,19 @@ fn setup(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut primary_window: Query<&mut Window, With<PrimaryWindow>>,
 ) {
+    let input_map = {
+        let mut input_map = InputMap::default();
+        input_map.insert(Action::Forward, KeyCode::KeyW);
+        input_map.insert(Action::Left, KeyCode::KeyA);
+        input_map.insert(Action::Backward, KeyCode::KeyS);
+        input_map.insert(Action::Right, KeyCode::KeyD);
+        input_map.insert(Action::Down, KeyCode::ShiftLeft);
+        input_map.insert(Action::Up, KeyCode::Space);
+        input_map.insert_dual_axis(Action::Look, MouseMove::default());
+        input_map
+    };
     commands
-        .spawn(Camera3dBundle::default())
+        .spawn(Camera3d::default())
         .insert(FpsCameraBundle::new(
             FpsCameraController {
                 translate_sensitivity: 12.0,
@@ -149,38 +198,23 @@ fn setup(
         ))
         .insert(InputManagerBundle {
             action_state: ActionState::default(),
-            input_map: InputMap::default()
-                .insert(KeyCode::W, Action::Forward)
-                .insert(KeyCode::A, Action::Left)
-                .insert(KeyCode::S, Action::Backward)
-                .insert(KeyCode::D, Action::Right)
-                .insert(KeyCode::ShiftLeft, Action::Down)
-                .insert(KeyCode::Space, Action::Up)
-                .insert(DualAxis::mouse_motion(), Action::Look)
-                .build(),
+            input_map,
         })
         .insert(Player);
 
-    commands.spawn(PbrBundle {
-        transform: Transform::from_translation(Vec3::new(0.0, -8.0, 0.0)),
-        mesh: meshes.add(Mesh::from(shape::Plane {
-            size: 60.0,
-            subdivisions: 1,
-        })),
-        material: materials.add(Color::hex("0047ab").unwrap().into()),
-        ..Default::default()
-    });
+    commands.spawn((
+        Transform::from_translation(Vec3::new(0.0, -8.0, 0.0)),
+        Mesh3d(meshes.add(Plane3d::new(Vec3::Y, Vec2::splat(30.0)))),
+        MeshMaterial3d(materials.add(Color::srgb_u8(0, 71, 171))),
+    ));
 
     commands.spawn((
-        PbrBundle {
-            transform: Transform::from_translation(Vec3::new(0.0, -8.0, 0.0)),
-            mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
-            material: materials.add(Color::PINK.into()),
-            ..Default::default()
-        },
+        Transform::from_translation(Vec3::new(0.0, -8.0, 0.0)),
+        Mesh3d(meshes.add(Cuboid::from_size(Vec3::splat(1.0)))),
+        MeshMaterial3d(materials.add(Color::from(css::PINK))),
         Animator::new(
             Tween::new(
-                EaseMethod::Linear,
+                EaseMethod::EaseFunction(EaseFunction::Linear),
                 Duration::from_secs(10),
                 TransformScaleLens {
                     start: Vec3::splat(1.0),
@@ -198,15 +232,15 @@ fn setup(
     // without affecting the other entities. Note that we could share
     // that material among multiple entities, and animating the material
     // asset would change the color of all entities using that material.
-    let unique_material = materials.add(Color::BLACK.into());
+    let unique_material = materials.add(Color::BLACK);
 
     for i in (0..=345usize).step_by(30) {
         let tween = Tween::new(
-            EaseMethod::Linear,
+            EaseMethod::EaseFunction(EaseFunction::Linear),
             std::time::Duration::from_secs(2),
             StandardMaterialBaseColorLens {
-                start: Color::RED,
-                end: Color::YELLOW,
+                start: css::RED.into(),
+                end: css::YELLOW.into(),
             },
         )
         // Repeat twice (one per way)
@@ -215,34 +249,31 @@ fn setup(
         .with_repeat_strategy(RepeatStrategy::MirroredRepeat);
 
         commands.spawn((
-            PbrBundle {
-                mesh: meshes.add(Mesh::from(shape::Cube { size: 1.5 })),
-                material: unique_material.clone(),
-                transform: {
-                    let mut trans = Transform::from_translation(Vec3::new(
-                        (i as f32).to_radians().cos() * 5.0,
-                        (i as f32).to_radians().sin() * 5.0,
-                        -5.0,
-                    ));
-                    trans.rotate(Quat::from_euler(
-                        EulerRot::YXZ,
-                        0.0,
-                        0.0,
-                        (i as f32).to_radians(),
-                    ));
-                    trans
-                },
-                ..Default::default()
+            Mesh3d(meshes.add(Cuboid::from_size(Vec3::splat(1.5)))),
+            MeshMaterial3d(unique_material.clone()),
+            {
+                let mut trans = Transform::from_translation(Vec3::new(
+                    (i as f32).to_radians().cos() * 5.0,
+                    (i as f32).to_radians().sin() * 5.0,
+                    -5.0,
+                ));
+                trans.rotate(Quat::from_euler(
+                    EulerRot::YXZ,
+                    0.0,
+                    0.0,
+                    (i as f32).to_radians(),
+                ));
+                trans
             },
             AssetAnimator::new(tween),
         ));
     }
 
     for i in (0..=345usize).step_by(30) {
-        commands.spawn(PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Cube { size: 1.5 })),
-            material: materials.add(Color::hex("041c56").unwrap().into()),
-            transform: {
+        commands.spawn((
+            Mesh3d(meshes.add(Cuboid::from_size(Vec3::splat(1.5)))),
+            MeshMaterial3d(materials.add(Color::srgb_u8(4, 28, 86))),
+            {
                 let mut trans = Transform::from_translation(Vec3::new(
                     (i as f32).to_radians().cos() * 5.0,
                     (i as f32).to_radians().sin() * 5.0,
@@ -256,15 +287,14 @@ fn setup(
                 ));
                 trans
             },
-            ..Default::default()
-        });
+        ));
     }
 
     for i in (0..=345usize).step_by(30) {
-        commands.spawn(PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Cube { size: 1.5 })),
-            material: materials.add(Color::hex("041c56").unwrap().into()),
-            transform: {
+        commands.spawn((
+            Mesh3d(meshes.add(Cuboid::from_size(Vec3::splat(1.5)))),
+            MeshMaterial3d(materials.add(Color::srgb_u8(4, 28, 86))),
+            {
                 let mut trans = Transform::from_translation(Vec3::new(
                     (i as f32).to_radians().cos() * 5.0,
                     i as f32 / 15.0,
@@ -278,28 +308,26 @@ fn setup(
                 ));
                 trans
             },
-            ..Default::default()
-        });
+        ));
     }
 
     for i in (0..=345usize).step_by(30) {
-        commands.spawn(PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Cube { size: 1.5 })),
-            material: materials.add(Color::hex("041c56").unwrap().into()),
-            transform: Transform::from_translation(Vec3::new(
+        commands.spawn((
+            Mesh3d(meshes.add(Cuboid::from_size(Vec3::splat(1.5)))),
+            MeshMaterial3d(materials.add(Color::srgb_u8(4, 28, 86))),
+            Transform::from_translation(Vec3::new(
                 (i as f32).to_radians().cos() * 10.0,
                 i as f32 / 15.0,
                 (i as f32).to_radians().sin() * 10.0,
             )),
-            ..Default::default()
-        });
+        ));
     }
 
     for i in (0..=359usize).step_by(2) {
-        commands.spawn(PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Cube { size: 0.25 })),
-            material: materials.add(Color::hex("041c56").unwrap().into()),
-            transform: {
+        commands.spawn((
+            Mesh3d(meshes.add(Cuboid::from_size(Vec3::splat(0.25)))),
+            MeshMaterial3d(materials.add(Color::srgb_u8(4, 28, 86))),
+            {
                 let mut trans = Transform::from_translation(Vec3::new(
                     (i as f32).to_radians().cos() * 15.0,
                     i as f32 / 7.5,
@@ -313,51 +341,45 @@ fn setup(
                 ));
                 trans
             },
-            ..Default::default()
-        });
+        ));
     }
 
     for i in (0..=345usize).step_by(30) {
         commands.spawn((
-            PbrBundle {
-                mesh: meshes.add(Mesh::from(shape::Cube { size: 1.5 })),
-                material: materials.add(Color::hex("041c56").unwrap().into()),
-                transform: {
-                    let mut trans = Transform::from_translation(Vec3::new(
-                        (i as f32).to_radians().cos() * 5.0,
-                        (i as f32).to_radians().sin() * 5.0,
-                        -(i as f32) / 15.0,
-                    ));
-                    trans.rotate(Quat::from_euler(
-                        EulerRot::YXZ,
-                        0.0,
-                        0.0,
-                        (i as f32).to_radians(),
-                    ));
-                    trans
-                },
-                ..Default::default()
+            Mesh3d(meshes.add(Cuboid::from_size(Vec3::splat(1.5)))),
+            MeshMaterial3d(materials.add(Color::srgb_u8(4, 28, 86))),
+            {
+                let mut trans = Transform::from_translation(Vec3::new(
+                    (i as f32).to_radians().cos() * 5.0,
+                    (i as f32).to_radians().sin() * 5.0,
+                    -(i as f32) / 15.0,
+                ));
+                trans.rotate(Quat::from_euler(
+                    EulerRot::YXZ,
+                    0.0,
+                    0.0,
+                    (i as f32).to_radians(),
+                ));
+                trans
             },
             Snakelike,
         ));
     }
 
-    let std_material = materials.add(StandardMaterial::from(Color::FUCHSIA));
+    let std_material = materials.add(StandardMaterial::from(Color::from(css::FUCHSIA)));
 
     commands
-        .spawn(PbrBundle {
-            transform: Transform::from_xyz(0.0, 0.0, 0.0),
-            ..Default::default()
-        })
+        .spawn(
+            Transform::from_xyz(0.0, 0.0, 0.0),
+        )
         .with_children(|parent| {
             for h in 0..20 {
                 parent
-                    .spawn(PbrBundle {
-                        transform: Transform::from_xyz(0.0, 0.0, h as f32),
-                        mesh: meshes.add(Mesh::from(shape::Cube { size: 0.5 })),
-                        material: std_material.clone(),
-                        ..Default::default()
-                    })
+                    .spawn((
+                        Transform::from_xyz(0.0, 0.0, h as f32),
+                        Mesh3d(meshes.add(Cuboid::from_size(Vec3::splat(0.5)))),
+                        MeshMaterial3d(std_material.clone()),
+                    ))
                     .insert(Ripple {
                         wave_movement: 0.0,
                         wave_tiling: 10.0,
@@ -371,18 +393,15 @@ fn setup(
         });
 
     commands.spawn((
-        DirectionalLightBundle {
-            transform: Transform::from_xyz(0.0, 1000.0, 0.0),
-            directional_light: DirectionalLight {
-                color: Color::hex("0047ab").unwrap(),
-                shadows_enabled: true,
-                ..Default::default()
-            },
+        Transform::from_xyz(0.0, 1000.0, 0.0),
+        DirectionalLight {
+            color: Color::srgb_u8(0, 71, 171),
+            shadows_enabled: true,
             ..Default::default()
         },
         Animator::new(
             Tween::new(
-                EaseMethod::Linear,
+                EaseMethod::EaseFunction(EaseFunction::Linear),
                 std::time::Duration::from_secs(3),
                 DirectionalLightIlluminanceLens {
                     start: 0.0001,
@@ -397,8 +416,8 @@ fn setup(
     ));
 
     if let Ok(mut window) = primary_window.get_single_mut() {
-        window.cursor.grab_mode = CursorGrabMode::Confined;
-        window.cursor.visible = false;
+        window.cursor_options.grab_mode = CursorGrabMode::Confined;
+        window.cursor_options.visible = false;
     }
 }
 
@@ -408,7 +427,7 @@ struct Snakelike;
 fn snakelike_movement(time: Res<Time>, mut positions: Query<&mut Transform, With<Snakelike>>) {
     for mut transform in positions.iter_mut() {
         let angle = std::f32::consts::PI / 2.0;
-        let time_delta = time.delta_seconds();
+        let time_delta = time.delta_secs();
         transform.translation.x = transform.translation.x * (time_delta * angle).cos()
             - transform.translation.y * (time_delta * angle).sin();
         transform.translation.y = transform.translation.y * (time_delta * angle).cos()
@@ -417,7 +436,7 @@ fn snakelike_movement(time: Res<Time>, mut positions: Query<&mut Transform, With
     }
 }
 
-#[derive(Actionlike, PartialEq, Eq, Clone, Copy, Hash, Debug, TypePath)]
+#[derive(Actionlike, PartialEq, Eq, Clone, Copy, Hash, Debug, Reflect)]
 enum Action {
     Forward,
     Left,
@@ -425,14 +444,14 @@ enum Action {
     Right,
     Down,
     Up,
+    #[actionlike(DualAxis)]
     Look,
 }
 
 #[bevy_main]
 fn main() {
     App::new()
-        .insert_resource(ClearColor(Color::AZURE))
-        .insert_resource(Msaa::default())
+        .insert_resource(ClearColor(Color::Srgba(css::AZURE)))
         .add_plugins((
             DefaultPlugins,
             TweeningPlugin,
@@ -441,6 +460,14 @@ fn main() {
             FpsCameraPlugin::new(true),
         ))
         .add_systems(Startup, setup)
-        .add_systems(Update, (player_move, player_look, animate_ripplers, snakelike_movement))
+        .add_systems(
+            Update,
+            (
+                player_move,
+                player_look,
+                animate_ripplers,
+                snakelike_movement,
+            ),
+        )
         .run();
 }
