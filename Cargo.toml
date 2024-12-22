@@ -9,5 +9,5 @@ edition = "2021"
 [dependencies]
 bevy = "0.15"
 bevy_tweening = "0.12"
-leafwing-input-manager = { git = "https://github.com/onkoe/leafwing-input-manager.git", branch = "fix/update_bevy_0-15_stable" }
+leafwing-input-manager = { git = "https://github.com/Leafwing-Studios/leafwing-input-manager.git" }
 smooth-bevy-cameras = "0.13"
